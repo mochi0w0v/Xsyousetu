@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=360, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>小説タイムライン</title>
 <link rel="stylesheet" href="style.css">
+<!-- pdf.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
 </head>
 <body>
 <h1>小説タイムライン</h1>
 
 <div id="controls">
-  <input type="file" id="fileInput" accept=".txt">
+  <input type="file" id="fileInput" accept=".txt,.pdf">
+  <span id="fileName"></span>
   <button id="resetBtn">リセット</button>
 </div>
 
