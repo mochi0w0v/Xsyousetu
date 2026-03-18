@@ -6,7 +6,7 @@ const resetBtn = document.getElementById('resetBtn');
 const STORAGE_TEXT_KEY = 'novelText';
 const STORAGE_LIKED_KEY = 'likedBlocks';
 
-let fileAttached = false; // 添付済みフラグ
+let fileAttached = false;
 
 // 「。」が3つで1ブロックに分割
 function splitText(text) {
@@ -81,9 +81,9 @@ function scrollToLastLiked(likedIndexes) {
   if (el) el.scrollIntoView({behavior: 'smooth'});
 }
 
-// ファイル読み込み（テキスト / PDF両対応）
+// ファイル読み込み（テキスト / PDF対応）
 fileInput.addEventListener('change', async (e) => {
-  if (fileAttached) return; // 添付済みなら無視
+  if (fileAttached) return;
 
   const file = e.target.files[0];
   if (!file) return;
@@ -111,16 +111,17 @@ fileInput.addEventListener('change', async (e) => {
     renderTweets(blocks);
 
   } else {
-    // テキスト読み込み
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result;
-      localStorage.setItem(STORAGE_TEXT_KEY, text);
-      localStorage.removeItem(STORAGE_LIKED_KEY);
-      const blocks = splitText(text);
-      renderTweets(blocks);
-    };
-    reader.readAsText(file, 'UTF-8');
+    // テキストファイル：文字コード自動判定
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let encoding = Encoding.detect(uint8);
+    let text = Encoding.convert(uint8, {to: 'UNICODE', from: encoding});
+    text = Encoding.codeToString(text);
+
+    localStorage.setItem(STORAGE_TEXT_KEY, text);
+    localStorage.removeItem(STORAGE_LIKED_KEY);
+    const blocks = splitText(text);
+    renderTweets(blocks);
   }
 });
 
