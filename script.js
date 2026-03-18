@@ -1,9 +1,12 @@
 const fileInput = document.getElementById('fileInput');
+const fileNameSpan = document.getElementById('fileName');
 const container = document.getElementById('novel-container');
 const resetBtn = document.getElementById('resetBtn');
 
 const STORAGE_TEXT_KEY = 'novelText';
 const STORAGE_LIKED_KEY = 'likedBlocks';
+
+let fileAttached = false; // 添付済みフラグ
 
 // 「。」が3つで1ブロックに分割
 function splitText(text) {
@@ -78,23 +81,55 @@ function scrollToLastLiked(likedIndexes) {
   if (el) el.scrollIntoView({behavior: 'smooth'});
 }
 
-// ファイル読み込み
-fileInput.addEventListener('change', (e) => {
+// ファイル読み込み（テキスト / PDF両対応）
+fileInput.addEventListener('change', async (e) => {
+  if (fileAttached) return; // 添付済みなら無視
+
   const file = e.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    const text = reader.result;
-    localStorage.setItem(STORAGE_TEXT_KEY, text);
+  fileAttached = true;
+  fileNameSpan.textContent = file.name;
+
+  if (file.type === "application/pdf") {
+    // PDF読み込み
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join('');
+      fullText += pageText;
+    }
+
+    localStorage.setItem(STORAGE_TEXT_KEY, fullText);
     localStorage.removeItem(STORAGE_LIKED_KEY);
-    const blocks = splitText(text);
+    const blocks = splitText(fullText);
     renderTweets(blocks);
-  };
-  reader.readAsText(file, 'UTF-8');
+
+  } else {
+    // テキスト読み込み
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      localStorage.setItem(STORAGE_TEXT_KEY, text);
+      localStorage.removeItem(STORAGE_LIKED_KEY);
+      const blocks = splitText(text);
+      renderTweets(blocks);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
 });
 
-// ページ読み込み時にlocalStorageに文章があれば表示
+// 添付後は再度選択不可
+fileInput.addEventListener('click', (e) => {
+  if (fileAttached) e.preventDefault();
+});
+
+// ページ読み込み時に保存テキストがあれば表示
 window.addEventListener('load', () => {
   const text = localStorage.getItem(STORAGE_TEXT_KEY);
   if (text) {
@@ -103,10 +138,12 @@ window.addEventListener('load', () => {
   }
 });
 
-// リセットボタン
+// リセット
 resetBtn.addEventListener('click', () => {
   localStorage.removeItem(STORAGE_TEXT_KEY);
   localStorage.removeItem(STORAGE_LIKED_KEY);
   container.innerHTML = '';
   fileInput.value = '';
+  fileNameSpan.textContent = '';
+  fileAttached = false;
 });
