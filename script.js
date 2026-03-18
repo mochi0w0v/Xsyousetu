@@ -28,7 +28,7 @@ function splitText(text) {
 // ブロックを描画
 function renderTweets(blocks) {
   container.innerHTML = '';
-  let likedIndexes = [];
+  let likedIndexes;
   try {
     likedIndexes = JSON.parse(localStorage.getItem(STORAGE_LIKED_KEY)) || [];
     if (!Array.isArray(likedIndexes)) likedIndexes = [];
@@ -39,7 +39,6 @@ function renderTweets(blocks) {
   blocks.forEach((b, i) => {
     const div = document.createElement('div');
     div.className = 'tweet';
-
     const textSpan = document.createElement('span');
     textSpan.className = 'text';
     textSpan.textContent = b;
@@ -47,14 +46,15 @@ function renderTweets(blocks) {
     const likeBtn = document.createElement('span');
     likeBtn.className = 'like-btn';
     likeBtn.textContent = '★';
-    if (likedIndexes.includes(i)) likeBtn.classList.add('liked');
+    if (likedIndexes.includes(Number(i))) likeBtn.classList.add('liked');
 
     likeBtn.addEventListener('click', () => {
-      if (likedIndexes.includes(i)) {
-        likedIndexes = likedIndexes.filter(idx => idx !== i);
+      const index = Number(i);
+      if (likedIndexes.includes(index)) {
+        likedIndexes = likedIndexes.filter(idx => idx !== index);
         likeBtn.classList.remove('liked');
       } else {
-        likedIndexes.push(i);
+        likedIndexes.push(index);
         likeBtn.classList.add('liked');
       }
       localStorage.setItem(STORAGE_LIKED_KEY, JSON.stringify(likedIndexes));
@@ -74,40 +74,41 @@ function scrollToLastLiked(likedIndexes) {
   if (likedIndexes.length === 0) return;
   const lastIndex = Math.max(...likedIndexes);
   const el = container.children[lastIndex];
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
+  if (el) el.scrollIntoView({behavior: 'smooth'});
 }
 
-// ファイル読み込み
+// ファイル読み込み（テキスト / PDF対応）
 fileInput.addEventListener('change', async (e) => {
   if (fileAttached) return;
   const file = e.target.files[0];
   if (!file) return;
 
   fileAttached = true;
-
-  // ファイル名表示（必ず最初に）
   fileNameSpan.textContent = file.name;
 
   // 添付ボタン非表示
-  fileInput.style.visibility = 'hidden';
-  fileInput.style.pointerEvents = 'none';
+  fileInput.style.display = 'none';
 
   if (file.type === "application/pdf") {
     // PDF読み込み
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const items = await page.getTextContent();
-      fullText += items.items.map(it => it.str).join('');
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join('');
+      fullText += pageText;
     }
     localStorage.setItem(STORAGE_TEXT_KEY, fullText);
     localStorage.removeItem(STORAGE_LIKED_KEY);
-    renderTweets(splitText(fullText));
+    const blocks = splitText(fullText);
+    renderTweets(blocks);
 
   } else {
-    // テキストファイル：文字コード自動判定
+    // テキストファイル：encoding.js で文字コード自動判定
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
     const enc = Encoding.detect(uint8) || 'UTF8';
@@ -116,19 +117,23 @@ fileInput.addEventListener('change', async (e) => {
 
     localStorage.setItem(STORAGE_TEXT_KEY, text);
     localStorage.removeItem(STORAGE_LIKED_KEY);
-    renderTweets(splitText(text));
+    const blocks = splitText(text);
+    renderTweets(blocks);
   }
 });
 
-// 添付後は再選択不可
+// 添付後は再度選択不可
 fileInput.addEventListener('click', (e) => {
   if (fileAttached) e.preventDefault();
 });
 
-// ページ読み込み時に保存済みテキストがあれば表示
+// ページ読み込み時に保存テキストがあれば表示
 window.addEventListener('load', () => {
   const text = localStorage.getItem(STORAGE_TEXT_KEY);
-  if (text) renderTweets(splitText(text));
+  if (text) {
+    const blocks = splitText(text);
+    renderTweets(blocks);
+  }
 });
 
 // リセット
@@ -139,6 +144,5 @@ resetBtn.addEventListener('click', () => {
   fileInput.value = '';
   fileNameSpan.textContent = '';
   fileAttached = false;
-  fileInput.style.visibility = 'visible';
-  fileInput.style.pointerEvents = 'auto';
+  fileInput.style.display = 'inline-block';
 });
