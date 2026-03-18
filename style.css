@@ -24,7 +24,7 @@ h1 {
 #fileInput {
   flex: 1;
   padding: 6px;
-  pointer-events: auto; /* クリック可能なのはinputだけ */
+  pointer-events: auto;
 }
 
 #fileName {
