@@ -10,52 +10,35 @@ const STORAGE_FILE_NAME = 'attachedFileName';
 let fileAttached = false;
 
 // 「。」が3つで1ブロックに分割
-function splitText(text) {
-  let blocks = [];
-  let block = '';
-  let dotCount = 0;
-  for (let char of text) {
-    block += char;
-    if (char === '。') dotCount++;
-    if (dotCount >= 3) {
-      blocks.push(block.trim());
-      block = '';
-      dotCount = 0;
-    }
+function splitText(text){
+  let blocks=[], block='', dot=0;
+  for(let c of text){
+    block += c;
+    if(c==='。') dot++;
+    if(dot>=3){ blocks.push(block.trim()); block=''; dot=0; }
   }
-  if (block) blocks.push(block.trim());
+  if(block) blocks.push(block.trim());
   return blocks;
 }
 
 // ブロック描画
-function renderTweets(blocks) {
-  container.innerHTML = '';
-  let likedIndexes = [];
-  try {
-    likedIndexes = JSON.parse(localStorage.getItem(STORAGE_LIKED_KEY)) || [];
-    if (!Array.isArray(likedIndexes)) likedIndexes = [];
-  } catch (e) {
-    likedIndexes = [];
-  }
+function renderTweets(blocks){
+  container.innerHTML='';
+  let likedIndexes=[];
+  try{ likedIndexes = JSON.parse(localStorage.getItem(STORAGE_LIKED_KEY))||[]; if(!Array.isArray(likedIndexes)) likedIndexes=[]; } catch(e){ likedIndexes=[]; }
 
-  blocks.forEach((b, i) => {
-    const div = document.createElement('div');
-    div.className = 'tweet';
+  blocks.forEach((b,i)=>{
+    const div=document.createElement('div'); div.className='tweet';
+    const textSpan=document.createElement('span'); textSpan.className='text'; textSpan.textContent=b;
 
-    const textSpan = document.createElement('span');
-    textSpan.className = 'text';
-    textSpan.textContent = b;
+    const likeBtn=document.createElement('span'); likeBtn.className='like-btn'; likeBtn.textContent='★';
+    if(likedIndexes.includes(i)) likeBtn.classList.add('liked');
 
-    const likeBtn = document.createElement('span');
-    likeBtn.className = 'like-btn';
-    likeBtn.textContent = '★';
-    if (likedIndexes.includes(i)) likeBtn.classList.add('liked');
-
-    likeBtn.addEventListener('click', () => {
-      if (likedIndexes.includes(i)) {
-        likedIndexes = likedIndexes.filter(idx => idx !== i);
+    likeBtn.addEventListener('click',()=>{
+      if(likedIndexes.includes(i)){
+        likedIndexes = likedIndexes.filter(x=>x!==i);
         likeBtn.classList.remove('liked');
-      } else {
+      }else{
         likedIndexes.push(i);
         likeBtn.classList.add('liked');
       }
@@ -72,50 +55,58 @@ function renderTweets(blocks) {
 }
 
 // 一番下までスクロール
-function scrollToLastLiked(likedIndexes) {
-  if (likedIndexes.length === 0) return;
+function scrollToLastLiked(likedIndexes){
+  if(likedIndexes.length===0) return;
   const lastIndex = Math.max(...likedIndexes);
   const el = container.children[lastIndex];
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
+  if(el) el.scrollIntoView({behavior:'smooth'});
 }
 
+// DOMContentLoaded でファイル状態復元
+document.addEventListener('DOMContentLoaded', ()=>{
+  const fileName = localStorage.getItem(STORAGE_FILE_NAME);
+  const text = localStorage.getItem(STORAGE_TEXT_KEY);
+
+  if(fileName){
+    fileNameSpan.textContent = fileName;
+    fileInput.style.display = 'none';
+    fileAttached = true;
+  } else {
+    fileInput.style.display = 'inline-block';
+  }
+
+  if(text) renderTweets(splitText(text));
+});
+
 // ファイル読み込み
-fileInput.addEventListener('change', async (e) => {
-  if (fileAttached) return;
-  const file = e.target.files[0];
-  if (!file) return;
+fileInput.addEventListener('change', async (e)=>{
+  if(fileAttached) return;
+  const file = e.target.files[0]; if(!file) return;
 
   fileAttached = true;
-
-  // ファイル名表示 & 保存
   fileNameSpan.textContent = file.name;
   localStorage.setItem(STORAGE_FILE_NAME, file.name);
 
-  // 添付ボタン非表示
-  fileInput.style.display = 'none';
+  fileInput.style.display='none';
 
-  if (file.type === "application/pdf") {
+  if(file.type==="application/pdf"){
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let fullText='';
+    for(let i=1;i<=pdf.numPages;i++){
       const page = await pdf.getPage(i);
       const items = await page.getTextContent();
-      fullText += items.items.map(it => it.str).join('');
+      fullText += items.items.map(it=>it.str).join('');
     }
-
     localStorage.setItem(STORAGE_TEXT_KEY, fullText);
     localStorage.removeItem(STORAGE_LIKED_KEY);
     renderTweets(splitText(fullText));
-
-  } else {
+  }else{
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
     const enc = Encoding.detect(uint8) || 'UTF8';
-    let text = Encoding.convert(uint8, { to: 'UNICODE', from: enc });
+    let text = Encoding.convert(uint8,{to:'UNICODE',from:enc});
     text = Encoding.codeToString(text);
-
     localStorage.setItem(STORAGE_TEXT_KEY, text);
     localStorage.removeItem(STORAGE_LIKED_KEY);
     renderTweets(splitText(text));
@@ -123,34 +114,16 @@ fileInput.addEventListener('change', async (e) => {
 });
 
 // 添付後は再選択不可
-fileInput.addEventListener('click', (e) => {
-  if (fileAttached) e.preventDefault();
-});
-
-// ページ読み込み時に保存済みデータを復元
-window.addEventListener('load', () => {
-  const text = localStorage.getItem(STORAGE_TEXT_KEY);
-  const fileName = localStorage.getItem(STORAGE_FILE_NAME);
-
-  if (text) renderTweets(splitText(text));
-
-  if (fileName) {
-    fileNameSpan.textContent = fileName;
-    fileInput.style.display = 'none';
-    fileAttached = true;
-  } else {
-    fileInput.style.display = 'inline-block';
-  }
-});
+fileInput.addEventListener('click',(e)=>{ if(fileAttached) e.preventDefault(); });
 
 // リセット
-resetBtn.addEventListener('click', () => {
+resetBtn.addEventListener('click',()=>{
   localStorage.removeItem(STORAGE_TEXT_KEY);
   localStorage.removeItem(STORAGE_LIKED_KEY);
   localStorage.removeItem(STORAGE_FILE_NAME);
-  container.innerHTML = '';
-  fileInput.value = '';
-  fileNameSpan.textContent = '';
-  fileAttached = false;
-  fileInput.style.display = 'inline-block';
+  container.innerHTML='';
+  fileInput.value='';
+  fileNameSpan.textContent='';
+  fileAttached=false;
+  fileInput.style.display='inline-block';
 });
