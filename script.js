@@ -91,6 +91,9 @@ fileInput.addEventListener('change', async (e) => {
   fileAttached = true;
   fileNameSpan.textContent = file.name;
 
+  // 添付ボタン非表示
+  fileInput.style.display = 'none';
+
   if (file.type === "application/pdf") {
     // PDF読み込み
     const arrayBuffer = await file.arrayBuffer();
@@ -111,7 +114,7 @@ fileInput.addEventListener('change', async (e) => {
     renderTweets(blocks);
 
   } else {
-    // テキストファイル：UTF-8優先、失敗時はShift_JIS
+    // テキストファイル：UTF-8優先、失敗時Shift_JIS
     const arrayBuffer = await file.arrayBuffer();
     let text;
     try {
@@ -124,6 +127,7 @@ fileInput.addEventListener('change', async (e) => {
         fileAttached = false;
         fileInput.value = '';
         fileNameSpan.textContent = '';
+        fileInput.style.display = 'inline-block';
         return;
       }
     }
@@ -157,4 +161,5 @@ resetBtn.addEventListener('click', () => {
   fileInput.value = '';
   fileNameSpan.textContent = '';
   fileAttached = false;
+  fileInput.style.display = 'inline-block';
 });
