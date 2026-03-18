@@ -27,7 +27,7 @@ function splitText(text) {
   return blocks;
 }
 
-// ブロックを描画
+// ブロック描画
 function renderTweets(blocks) {
   container.innerHTML = '';
   let likedIndexes = [];
@@ -71,7 +71,7 @@ function renderTweets(blocks) {
   scrollToLastLiked(likedIndexes);
 }
 
-// 一番下のいいねまでスクロール
+// 一番下までスクロール
 function scrollToLastLiked(likedIndexes) {
   if (likedIndexes.length === 0) return;
   const lastIndex = Math.max(...likedIndexes);
@@ -79,7 +79,7 @@ function scrollToLastLiked(likedIndexes) {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ファイル読み込み（テキスト / PDF対応）
+// ファイル読み込み
 fileInput.addEventListener('change', async (e) => {
   if (fileAttached) return;
   const file = e.target.files[0];
@@ -95,7 +95,6 @@ fileInput.addEventListener('change', async (e) => {
   fileInput.style.display = 'none';
 
   if (file.type === "application/pdf") {
-    // PDF読み込み
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
@@ -111,7 +110,6 @@ fileInput.addEventListener('change', async (e) => {
     renderTweets(splitText(fullText));
 
   } else {
-    // テキストファイル：encoding.js 自動判定
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
     const enc = Encoding.detect(uint8) || 'UTF8';
@@ -129,7 +127,7 @@ fileInput.addEventListener('click', (e) => {
   if (fileAttached) e.preventDefault();
 });
 
-// ページ読み込み時に保存済みデータがあれば復元
+// ページ読み込み時に保存済みデータを復元
 window.addEventListener('load', () => {
   const text = localStorage.getItem(STORAGE_TEXT_KEY);
   const fileName = localStorage.getItem(STORAGE_FILE_NAME);
@@ -140,6 +138,8 @@ window.addEventListener('load', () => {
     fileNameSpan.textContent = fileName;
     fileInput.style.display = 'none';
     fileAttached = true;
+  } else {
+    fileInput.style.display = 'inline-block';
   }
 });
 
