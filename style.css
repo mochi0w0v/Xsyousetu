@@ -38,6 +38,8 @@ h1 {
 
 #resetBtn {
   padding: 6px 12px;
+  min-width: 60px;
+  flex-shrink: 0;
 }
 
 #novel-container {
