@@ -5,6 +5,8 @@ const resetBtn = document.getElementById('resetBtn');
 
 const STORAGE_TEXT_KEY = 'novelText';
 const STORAGE_LIKED_KEY = 'likedBlocks';
+const STORAGE_FILE_NAME = 'attachedFileName';
+
 let fileAttached = false;
 
 // 「。」が3つで1ブロックに分割
@@ -28,7 +30,7 @@ function splitText(text) {
 // ブロックを描画
 function renderTweets(blocks) {
   container.innerHTML = '';
-  let likedIndexes;
+  let likedIndexes = [];
   try {
     likedIndexes = JSON.parse(localStorage.getItem(STORAGE_LIKED_KEY)) || [];
     if (!Array.isArray(likedIndexes)) likedIndexes = [];
@@ -39,6 +41,7 @@ function renderTweets(blocks) {
   blocks.forEach((b, i) => {
     const div = document.createElement('div');
     div.className = 'tweet';
+
     const textSpan = document.createElement('span');
     textSpan.className = 'text';
     textSpan.textContent = b;
@@ -46,15 +49,14 @@ function renderTweets(blocks) {
     const likeBtn = document.createElement('span');
     likeBtn.className = 'like-btn';
     likeBtn.textContent = '★';
-    if (likedIndexes.includes(Number(i))) likeBtn.classList.add('liked');
+    if (likedIndexes.includes(i)) likeBtn.classList.add('liked');
 
     likeBtn.addEventListener('click', () => {
-      const index = Number(i);
-      if (likedIndexes.includes(index)) {
-        likedIndexes = likedIndexes.filter(idx => idx !== index);
+      if (likedIndexes.includes(i)) {
+        likedIndexes = likedIndexes.filter(idx => idx !== i);
         likeBtn.classList.remove('liked');
       } else {
-        likedIndexes.push(index);
+        likedIndexes.push(i);
         likeBtn.classList.add('liked');
       }
       localStorage.setItem(STORAGE_LIKED_KEY, JSON.stringify(likedIndexes));
@@ -74,7 +76,7 @@ function scrollToLastLiked(likedIndexes) {
   if (likedIndexes.length === 0) return;
   const lastIndex = Math.max(...likedIndexes);
   const el = container.children[lastIndex];
-  if (el) el.scrollIntoView({behavior: 'smooth'});
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
 // ファイル読み込み（テキスト / PDF対応）
@@ -84,7 +86,10 @@ fileInput.addEventListener('change', async (e) => {
   if (!file) return;
 
   fileAttached = true;
+
+  // ファイル名表示 & 保存
   fileNameSpan.textContent = file.name;
+  localStorage.setItem(STORAGE_FILE_NAME, file.name);
 
   // 添付ボタン非表示
   fileInput.style.display = 'none';
@@ -92,23 +97,21 @@ fileInput.addEventListener('change', async (e) => {
   if (file.type === "application/pdf") {
     // PDF読み込み
     const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-    const pdf = await loadingTask.promise;
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map(item => item.str).join('');
-      fullText += pageText;
+      const items = await page.getTextContent();
+      fullText += items.items.map(it => it.str).join('');
     }
+
     localStorage.setItem(STORAGE_TEXT_KEY, fullText);
     localStorage.removeItem(STORAGE_LIKED_KEY);
-    const blocks = splitText(fullText);
-    renderTweets(blocks);
+    renderTweets(splitText(fullText));
 
   } else {
-    // テキストファイル：encoding.js で文字コード自動判定
+    // テキストファイル：encoding.js 自動判定
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
     const enc = Encoding.detect(uint8) || 'UTF8';
@@ -117,22 +120,26 @@ fileInput.addEventListener('change', async (e) => {
 
     localStorage.setItem(STORAGE_TEXT_KEY, text);
     localStorage.removeItem(STORAGE_LIKED_KEY);
-    const blocks = splitText(text);
-    renderTweets(blocks);
+    renderTweets(splitText(text));
   }
 });
 
-// 添付後は再度選択不可
+// 添付後は再選択不可
 fileInput.addEventListener('click', (e) => {
   if (fileAttached) e.preventDefault();
 });
 
-// ページ読み込み時に保存テキストがあれば表示
+// ページ読み込み時に保存済みデータがあれば復元
 window.addEventListener('load', () => {
   const text = localStorage.getItem(STORAGE_TEXT_KEY);
-  if (text) {
-    const blocks = splitText(text);
-    renderTweets(blocks);
+  const fileName = localStorage.getItem(STORAGE_FILE_NAME);
+
+  if (text) renderTweets(splitText(text));
+
+  if (fileName) {
+    fileNameSpan.textContent = fileName;
+    fileInput.style.display = 'none';
+    fileAttached = true;
   }
 });
 
@@ -140,6 +147,7 @@ window.addEventListener('load', () => {
 resetBtn.addEventListener('click', () => {
   localStorage.removeItem(STORAGE_TEXT_KEY);
   localStorage.removeItem(STORAGE_LIKED_KEY);
+  localStorage.removeItem(STORAGE_FILE_NAME);
   container.innerHTML = '';
   fileInput.value = '';
   fileNameSpan.textContent = '';
