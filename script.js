@@ -111,12 +111,22 @@ fileInput.addEventListener('change', async (e) => {
     renderTweets(blocks);
 
   } else {
-    // テキストファイル：文字コード自動判定
+    // テキストファイル：UTF-8優先、失敗時はShift_JIS
     const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    let encoding = Encoding.detect(uint8);
-    let text = Encoding.convert(uint8, {to: 'UNICODE', from: encoding});
-    text = Encoding.codeToString(text);
+    let text;
+    try {
+      text = new TextDecoder('utf-8').decode(arrayBuffer);
+    } catch (e) {
+      try {
+        text = new TextDecoder('shift-jis').decode(arrayBuffer);
+      } catch {
+        alert("文字コードが不明です。UTF-8またはShift_JIS形式のファイルを使用してください。");
+        fileAttached = false;
+        fileInput.value = '';
+        fileNameSpan.textContent = '';
+        return;
+      }
+    }
 
     localStorage.setItem(STORAGE_TEXT_KEY, text);
     localStorage.removeItem(STORAGE_LIKED_KEY);
