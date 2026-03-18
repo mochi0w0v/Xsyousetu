@@ -6,7 +6,7 @@ body {
   width: 360px;
   margin-left: auto;
   margin-right: auto;
-  overflow-x: hidden; /* 横スクロール防止 */
+  overflow-x: hidden;
 }
 
 h1 {
@@ -18,11 +18,22 @@ h1 {
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+  align-items: center;
 }
 
 #fileInput {
   flex: 1;
   padding: 6px;
+  pointer-events: auto; /* クリック可能なのはinputだけ */
+}
+
+#fileName {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #resetBtn {
@@ -46,7 +57,7 @@ h1 {
   white-space: pre-wrap;
   width: 100%;
   box-sizing: border-box;
-  position: relative; /* ← ここがポイント */
+  position: relative;
 }
 
 .tweet .text {
@@ -54,15 +65,15 @@ h1 {
 }
 
 .tweet .like-btn {
-  position: absolute;  /* 右下固定 */
+  position: absolute;
   bottom: 4px;
   right: 10px;
   font-size: 16px;
   cursor: pointer;
-  color: #666666; /* 初期灰色 */
+  color: #666666;
   user-select: none;
 }
 
 .tweet .like-btn.liked {
-  color: #FFD700; /* いいね済みは黄色 */
+  color: #FFD700;
 }
