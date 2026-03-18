@@ -5,7 +5,6 @@ const resetBtn = document.getElementById('resetBtn');
 
 const STORAGE_TEXT_KEY = 'novelText';
 const STORAGE_LIKED_KEY = 'likedBlocks';
-
 let fileAttached = false;
 
 // 「。」が3つで1ブロックに分割
@@ -13,7 +12,6 @@ function splitText(text) {
   let blocks = [];
   let block = '';
   let dotCount = 0;
-
   for (let char of text) {
     block += char;
     if (char === '。') dotCount++;
@@ -23,7 +21,6 @@ function splitText(text) {
       dotCount = 0;
     }
   }
-
   if (block) blocks.push(block.trim());
   return blocks;
 }
@@ -50,7 +47,6 @@ function renderTweets(blocks) {
     const likeBtn = document.createElement('span');
     likeBtn.className = 'like-btn';
     likeBtn.textContent = '★';
-
     if (likedIndexes.includes(i)) likeBtn.classList.add('liked');
 
     likeBtn.addEventListener('click', () => {
@@ -81,14 +77,15 @@ function scrollToLastLiked(likedIndexes) {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ファイル読み込み（テキスト / PDF対応）
+// ファイル読み込み
 fileInput.addEventListener('change', async (e) => {
   if (fileAttached) return;
-
   const file = e.target.files[0];
   if (!file) return;
 
   fileAttached = true;
+
+  // ファイル名表示（必ず最初に）
   fileNameSpan.textContent = file.name;
 
   // 添付ボタン非表示
@@ -98,27 +95,23 @@ fileInput.addEventListener('change', async (e) => {
   if (file.type === "application/pdf") {
     // PDF読み込み
     const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-    const pdf = await loadingTask.promise;
-
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map(item => item.str).join('');
-      fullText += pageText;
+      const items = await page.getTextContent();
+      fullText += items.items.map(it => it.str).join('');
     }
-
     localStorage.setItem(STORAGE_TEXT_KEY, fullText);
     localStorage.removeItem(STORAGE_LIKED_KEY);
     renderTweets(splitText(fullText));
 
   } else {
-    // テキストファイル：文字コード自動判定（ANSI/Shift_JIS/UTF-8）
+    // テキストファイル：文字コード自動判定
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
-    const encoding = Encoding.detect(uint8) || 'UTF8';
-    let text = Encoding.convert(uint8, { to: 'UNICODE', from: encoding });
+    const enc = Encoding.detect(uint8) || 'UTF8';
+    let text = Encoding.convert(uint8, { to: 'UNICODE', from: enc });
     text = Encoding.codeToString(text);
 
     localStorage.setItem(STORAGE_TEXT_KEY, text);
@@ -132,7 +125,7 @@ fileInput.addEventListener('click', (e) => {
   if (fileAttached) e.preventDefault();
 });
 
-// ページ読み込み時に保存テキストがあれば表示
+// ページ読み込み時に保存済みテキストがあれば表示
 window.addEventListener('load', () => {
   const text = localStorage.getItem(STORAGE_TEXT_KEY);
   if (text) renderTweets(splitText(text));
